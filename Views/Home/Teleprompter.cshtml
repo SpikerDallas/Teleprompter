@@ -1,0 +1,204 @@
+@model Teleprompter.Models.TeleprompterModel
+
+@{
+    ViewData["Title"] = "Teleprompter";
+}
+
+<div class="teleprompter-container">
+    <div class="teleprompter-controls">
+        <div class="control-group">
+            <label for="fontSizeSlider">Font Size:</label>
+            <input type="range" id="fontSizeSlider" min="12" max="48" value="@Model.FontSize" class="form-range">
+            <span id="fontSizeDisplay">@Model.FontSize</span>px
+        </div>
+
+        <div class="control-group">
+            <label for="speedSlider">Speed:</label>
+            <input type="range" id="speedSlider" min="0.5" max="3" step="0.1" value="@Model.Speed" class="form-range">
+            <span id="speedDisplay">@Model.Speed</span>x
+        </div>
+
+        <div class="button-group">
+            <button id="playBtn" class="btn btn-success">Play</button>
+            <button id="pauseBtn" class="btn btn-warning">Pause</button>
+            <button id="resetBtn" class="btn btn-danger">Reset</button>
+        </div>
+    </div>
+
+    <div class="teleprompter-display">
+        <div id="scriptContent" class="script-text">@Model.Text</div>
+    </div>
+
+    <div class="teleprompter-editor">
+        <h5>Edit Script</h5>
+        <textarea id="scriptInput" class="form-control" rows="8">@Model.Text</textarea>
+        <button id="saveBtn" class="btn btn-primary mt-2">Save Script</button>
+    </div>
+</div>
+
+<style>
+    body {
+        background-color: #1a1a1a;
+        color: #ffffff;
+    }
+
+    .teleprompter-container {
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        padding: 20px;
+    }
+
+    .teleprompter-controls {
+        background-color: #2a2a2a;
+        padding: 20px;
+        border-radius: 8px;
+        margin-bottom: 20px;
+        display: flex;
+        gap: 30px;
+        flex-wrap: wrap;
+        align-items: center;
+    }
+
+    .control-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+    }
+
+    .control-group input {
+        width: 150px;
+    }
+
+    .button-group {
+        display: flex;
+        gap: 10px;
+    }
+
+    .teleprompter-display {
+        flex: 1;
+        background-color: #000000;
+        border: 3px solid #ffcc00;
+        border-radius: 8px;
+        padding: 40px;
+        overflow: hidden;
+        margin-bottom: 20px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .script-text {
+        font-size: 24px;
+        font-family: 'Arial', sans-serif;
+        line-height: 1.8;
+        text-align: center;
+        color: #ffcc00;
+        white-space: pre-wrap;
+        word-wrap: break-word;
+    }
+
+    .teleprompter-editor {
+        background-color: #2a2a2a;
+        padding: 20px;
+        border-radius: 8px;
+    }
+
+    .teleprompter-editor textarea {
+        background-color: #333333;
+        color: #ffffff;
+        border: 1px solid #444444;
+    }
+</style>
+
+<script>
+    let scrollPosition = 0;
+    let isPlaying = false;
+    let scrollSpeed = @Model.Speed;
+    let animationFrameId;
+
+    const scriptContent = document.getElementById('scriptContent');
+    const scriptInput = document.getElementById('scriptInput');
+    const playBtn = document.getElementById('playBtn');
+    const pauseBtn = document.getElementById('pauseBtn');
+    const resetBtn = document.getElementById('resetBtn');
+    const saveBtn = document.getElementById('saveBtn');
+    const fontSizeSlider = document.getElementById('fontSizeSlider');
+    const fontSizeDisplay = document.getElementById('fontSizeDisplay');
+    const speedSlider = document.getElementById('speedSlider');
+    const speedDisplay = document.getElementById('speedDisplay');
+
+    // Font size control
+    fontSizeSlider.addEventListener('input', (e) => {
+        const size = e.target.value;
+        scriptContent.style.fontSize = size + 'px';
+        fontSizeDisplay.textContent = size;
+    });
+
+    // Speed control
+    speedSlider.addEventListener('input', (e) => {
+        scrollSpeed = parseFloat(e.target.value);
+        speedDisplay.textContent = scrollSpeed.toFixed(1);
+    });
+
+    // Play button
+    playBtn.addEventListener('click', () => {
+        isPlaying = true;
+        animate();
+    });
+
+    // Pause button
+    pauseBtn.addEventListener('click', () => {
+        isPlaying = false;
+        cancelAnimationFrame(animationFrameId);
+    });
+
+    // Reset button
+    resetBtn.addEventListener('click', () => {
+        isPlaying = false;
+        cancelAnimationFrame(animationFrameId);
+        scrollPosition = 0;
+        scriptContent.parentElement.scrollTop = 0;
+    });
+
+    // Save script
+    saveBtn.addEventListener('click', async () => {
+        const text = scriptInput.value;
+        scriptContent.textContent = text;
+        
+        try {
+            const response = await fetch('@Url.Action("SaveScript")', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ text: text, fontSize: fontSizeSlider.value, speed: scrollSpeed })
+            });
+
+            if (response.ok) {
+                alert('Script saved successfully!');
+            } else {
+                alert('Failed to save script');
+            }
+        } catch (error) {
+            console.error('Error:', error);
+            alert('Error saving script');
+        }
+    });
+
+    // Scrolling animation
+    function animate() {
+        if (isPlaying) {
+            const displayArea = scriptContent.parentElement;
+            const maxScroll = displayArea.scrollHeight - displayArea.clientHeight;
+
+            if (scrollPosition < maxScroll) {
+                scrollPosition += scrollSpeed;
+                displayArea.scrollTop = scrollPosition;
+                animationFrameId = requestAnimationFrame(animate);
+            } else {
+                isPlaying = false;
+            }
+        }
+    }
+</script>
